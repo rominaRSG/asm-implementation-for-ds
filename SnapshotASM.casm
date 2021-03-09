@@ -1,0 +1,77 @@
+CoreASM RailRoadCrossing
+
+use StandardPlugins
+use TimePlugin
+use MathPlugin
+
+enum Process = {p, q}
+enum ProcessState = {s0, s1}
+enum Channel = {c1, c2}
+enum ChannelState = {empty, token}
+enum GlobalState = {in_p, in_c1, in_q, in_c2}
+
+function deadline : Track -> TIME
+function processState : Process -> ProcessState
+function channelState : Channel -> ChannelState
+function globalState : -> GlobalState 
+
+universe Agents = {globalStateController, observer, environment}
+
+init InitRule
+
+rule InitRule = {
+	print "-->InitRule"
+	forall c in Channel do {
+		channelState(c) := empty
+	}
+	processState(p) := s1
+	processState(q) := s0
+	globalState := in_p
+
+	program(globalStateController) := @GlobalStateControl
+	program(observer) := @ObserverProgram
+	program(environment) := @EnvironmentProgram
+	program( self ) := undef
+}
+
+rule GlobalStateControl = {
+	if globalState = in_p then {
+		channelState(c1) := token
+		processState(p) := s0
+		globalState := in_c1
+	} else if globalState = in_c1 then {
+			channelState(c1) := empty
+			processState(q) := s1
+			globalState := in_q
+		} else if globalState = in_q then {
+				channelState(c2) := token
+				processState(q) := s0
+				globalState := in_c2
+			} else if globalState = in_c2 then {
+					channelState(c2) := empty
+					processState(p) := s1
+					globalState := in_p
+				}
+}
+
+// The observer
+rule ObserverProgram =
+	seqblock
+		print "Processes State: "
+		forall p in Process do
+			print "-->" + p + " = " + processState(p)
+		print "Channels State: "
+		forall c in Channel do
+			print "->" + c + " = " + channelState(c)
+		print "=> GlobalState:: " + globalState
+		print "  "
+	endseqblock
+
+// The environment
+rule EnvironmentProgram =
+	seqblock
+		print "-->EnvironmentProgram"
+	endseqblock
+
+
+
